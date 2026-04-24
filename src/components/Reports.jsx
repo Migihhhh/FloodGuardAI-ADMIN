@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -100,11 +100,19 @@ const generateCrowdsourcedData = () => {
 const allReports = generateCrowdsourcedData();
 
 const getHeatmapColor = (count) => {
-  if (count >= 20) return "#ef4444";
-  if (count >= 12) return "#f97316";
-  if (count >= 7) return "#eab308";
-  if (count > 0) return "#22c55e";
+  if (count >= 20) return "#ef4444"; // Red
+  if (count >= 12) return "#f97316"; // Orange/Yellow
+  if (count >= 7) return "#eab308"; // Yellow
+  if (count > 0) return "#22c55e"; // Green
   return "#cbd5e1";
+};
+
+// Helper to categorize count into a filterable string
+const getAlertCategory = (count) => {
+  if (count >= 20) return "Red";
+  if (count >= 12) return "Yellow"; // Including Orange in Yellow for the requested filter
+  if (count >= 7) return "Yellow";
+  return "Green";
 };
 
 const getBarangayReportCount = (barangayName) =>
@@ -112,13 +120,20 @@ const getBarangayReportCount = (barangayName) =>
 
 const Reports = () => {
   const [selectedBarangay, setSelectedBarangay] = useState("All");
+  const [selectedAlert, setSelectedAlert] = useState("All");
 
-  const filteredReports =
-    selectedBarangay === "All"
-      ? allReports
-      : allReports.filter((r) => r.barangay === selectedBarangay);
+  // Multi-level filtering: Barangay AND Alert Level
+  const filteredReports = allReports.filter((report) => {
+    const matchesBarangay =
+      selectedBarangay === "All" || report.barangay === selectedBarangay;
+    const count = getBarangayReportCount(report.barangay);
+    const alertCategory = getAlertCategory(count);
+    const matchesAlert =
+      selectedAlert === "All" || alertCategory === selectedAlert;
 
-  // FIXED: Consistent bounds and zoom with Overview component
+    return matchesBarangay && matchesAlert;
+  });
+
   const marikinaBounds = [
     [14.6105, 121.08],
     [14.6785, 121.1275],
@@ -182,29 +197,20 @@ const Reports = () => {
             gap: "1.5rem",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-end",
-            }}
-          >
-            <div>
-              <h1
-                style={{
-                  fontSize: "2.5rem",
-                  fontWeight: "800",
-                  color: "#0f172a",
-                  margin: 0,
-                }}
-              >
-                Crowdsourced Reports
-              </h1>
-              <p style={{ color: "#475569" }}>
-                Active citizen flood monitoring across Marikina City.
-              </p>
-            </div>
-            {/* Legend... */}
+          <div>
+            <h1
+              style={{
+                fontSize: "2.5rem",
+                fontWeight: "800",
+                color: "#0f172a",
+                margin: 0,
+              }}
+            >
+              Crowdsourced Reports
+            </h1>
+            <p style={{ color: "#475569" }}>
+              Active citizen flood monitoring across Marikina City.
+            </p>
           </div>
 
           <div
@@ -230,7 +236,7 @@ const Reports = () => {
               <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
               {marikinaGeoJSON && (
                 <GeoJSON
-                  key={selectedBarangay}
+                  key={`${selectedBarangay}-${selectedAlert}`}
                   data={marikinaGeoJSON}
                   style={getFeatureStyle}
                   onEachFeature={onEachBarangay}
@@ -277,6 +283,31 @@ const Reports = () => {
             </span>
           </div>
 
+          {/* Alert Filter Buttons */}
+          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+            {["All", "Red", "Yellow", "Green"].map((level) => (
+              <button
+                key={level}
+                onClick={() => setSelectedAlert(level)}
+                style={{
+                  flex: 1,
+                  padding: "0.5rem",
+                  borderRadius: "8px",
+                  border: "none",
+                  fontWeight: "700",
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  backgroundColor:
+                    selectedAlert === level ? "#0f172a" : "#f1f5f9",
+                  color: selectedAlert === level ? "#ffffff" : "#64748b",
+                  transition: "all 0.2s",
+                }}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
+
           <select
             value={selectedBarangay}
             onChange={(e) => setSelectedBarangay(e.target.value)}
@@ -307,55 +338,75 @@ const Reports = () => {
               scrollbarWidth: "thin",
             }}
           >
-            {filteredReports.map((report) => (
+            {filteredReports.length > 0 ? (
+              filteredReports.map((report) => (
+                <div
+                  key={report.id}
+                  style={{
+                    padding: "1.25rem",
+                    borderRadius: "18px",
+                    border: "1px solid #f0f9ff",
+                    borderLeft: `6px solid ${getHeatmapColor(getBarangayReportCount(report.barangay))}`,
+                  }}
+                >
+                  <div
+                    style={{ display: "flex", justifyContent: "space-between" }}
+                  >
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: "1.1rem",
+                        fontWeight: "800",
+                      }}
+                    >
+                      {report.depth}
+                    </h3>
+                    <span style={{ fontSize: "0.7rem", color: "#adb5bd" }}>
+                      {report.time}
+                    </span>
+                  </div>
+                  <p
+                    style={{
+                      margin: "0.3rem 0",
+                      fontWeight: "700",
+                      fontSize: "0.95rem",
+                    }}
+                  >
+                    📍 {report.street}{" "}
+                    <span style={{ color: "#64748b", fontSize: "0.8rem" }}>
+                      ({report.barangay})
+                    </span>
+                  </p>
+                  <div
+                    style={{
+                      marginTop: "0.6rem",
+                      borderTop: "1px solid #f8faff",
+                      paddingTop: "0.6rem",
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <span style={{ fontSize: "0.9rem", fontWeight: "700" }}>
+                      {report.phone}
+                    </span>
+                    <span style={{ fontSize: "0.75rem", fontStyle: "italic" }}>
+                      — {report.name}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
               <div
-                key={report.id}
                 style={{
-                  padding: "1.25rem",
-                  borderRadius: "18px",
-                  border: "1px solid #f0f9ff",
-                  borderLeft: `6px solid ${getHeatmapColor(getBarangayReportCount(report.barangay))}`,
+                  textAlign: "center",
+                  padding: "2rem",
+                  color: "#64748b",
+                  fontWeight: "600",
                 }}
               >
-                <div
-                  style={{ display: "flex", justifyContent: "space-between" }}
-                >
-                  <h3
-                    style={{ margin: 0, fontSize: "1.1rem", fontWeight: "800" }}
-                  >
-                    {report.depth}
-                  </h3>
-                  <span style={{ fontSize: "0.7rem", color: "#adb5bd" }}>
-                    {report.time}
-                  </span>
-                </div>
-                <p
-                  style={{
-                    margin: "0.3rem 0",
-                    fontWeight: "700",
-                    fontSize: "0.95rem",
-                  }}
-                >
-                  📍 {report.street}
-                </p>
-                <div
-                  style={{
-                    marginTop: "0.6rem",
-                    borderTop: "1px solid #f8faff",
-                    paddingTop: "0.6rem",
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span style={{ fontSize: "0.9rem", fontWeight: "700" }}>
-                    {report.phone}
-                  </span>
-                  <span style={{ fontSize: "0.75rem", fontStyle: "italic" }}>
-                    — {report.name}
-                  </span>
-                </div>
+                No reports found for this filter.
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>

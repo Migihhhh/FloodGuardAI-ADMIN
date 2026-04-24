@@ -116,9 +116,45 @@ const PredictionTool = () => {
   const [selectedBarangay, setSelectedBarangay] = useState("Malanday");
   const [isPredicting, setIsPredicting] = useState(false);
   const [predictionResults, setPredictionResults] = useState(null);
-
-  // Scraper State
   const [scrapedPagasaData, setScrapedPagasaData] = useState(defaultPagasaData);
+
+  // --- REUSABLE PREDICTION LOGIC ---
+  const handlePredict = (targetBarangay = selectedBarangay) => {
+    setSelectedBarangay(targetBarangay);
+    setIsPredicting(true);
+    setPredictionResults(null);
+
+    // Simulate AI Processing Delay
+    setTimeout(() => {
+      const hourlyData = generate24HourData(
+        getBarangayData(targetBarangay).floodProb,
+      );
+      const maxProb = Math.max(...hourlyData.map((d) => d.prob));
+      let riskLevel = "Low Risk";
+      let riskColor = "#22c55e";
+      if (maxProb >= 50) {
+        riskLevel = "Moderate Risk";
+        riskColor = "#eab308";
+      }
+      if (maxProb >= 75) {
+        riskLevel = "High Risk";
+        riskColor = "#ef4444";
+      }
+      setPredictionResults({
+        hourly: hourlyData,
+        peakProbability: maxProb,
+        riskLevel,
+        riskColor,
+      });
+      setIsPredicting(false);
+    }, 1500); // Trigger 1.5s simulation
+  };
+
+  // --- AUTOMATIC GENERATION ON LOAD ---
+  useEffect(() => {
+    // Automatically runs prediction for the default barangay when component mounts
+    handlePredict("Malanday");
+  }, []);
 
   // --- REAL API FETCH ---
   useEffect(() => {
@@ -189,36 +225,6 @@ const PredictionTool = () => {
     });
   };
 
-  const handlePredict = (targetBarangay = selectedBarangay) => {
-    setSelectedBarangay(targetBarangay);
-    setIsPredicting(true);
-    setPredictionResults(null);
-
-    setTimeout(() => {
-      const hourlyData = generate24HourData(
-        getBarangayData(targetBarangay).floodProb,
-      );
-      const maxProb = Math.max(...hourlyData.map((d) => d.prob));
-      let riskLevel = "Low Risk";
-      let riskColor = "#22c55e";
-      if (maxProb >= 50) {
-        riskLevel = "Moderate Risk";
-        riskColor = "#eab308";
-      }
-      if (maxProb >= 75) {
-        riskLevel = "High Risk";
-        riskColor = "#ef4444";
-      }
-      setPredictionResults({
-        hourly: hourlyData,
-        peakProbability: maxProb,
-        riskLevel,
-        riskColor,
-      });
-      setIsPredicting(false);
-    }, 2000);
-  };
-
   const isCycloneActive = scrapedPagasaData.cycloneBulletin.active;
   const cycloneCardStyle = isCycloneActive
     ? {
@@ -276,6 +282,7 @@ const PredictionTool = () => {
           gap: "2rem",
         }}
       >
+        {/* Header Section */}
         <div
           style={{
             display: "flex",
@@ -318,7 +325,6 @@ const PredictionTool = () => {
                 height: "10px",
                 backgroundColor: "#22c55e",
                 borderRadius: "50%",
-                animation: "pulse 2s infinite",
               }}
             ></div>
             <span
@@ -333,6 +339,7 @@ const PredictionTool = () => {
           </div>
         </div>
 
+        {/* Dashboard Grid */}
         <div
           style={{
             display: "grid",
@@ -340,6 +347,7 @@ const PredictionTool = () => {
             gap: "1.5rem",
           }}
         >
+          {/* Cyclone Bulletin */}
           <div
             style={{
               backgroundColor: cycloneCardStyle.bg,
@@ -450,37 +458,6 @@ const PredictionTool = () => {
                       {scrapedPagasaData.cycloneBulletin.maxWinds}
                     </span>
                   </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginTop: "0.5rem",
-                      paddingTop: "0.5rem",
-                      borderTop: `1px solid ${cycloneCardStyle.border}`,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "0.85rem",
-                        color: cycloneCardStyle.textHead,
-                        fontWeight: "600",
-                      }}
-                    >
-                      NCR Warning:
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "0.85rem",
-                        color: "#ffffff",
-                        backgroundColor: cycloneCardStyle.accent,
-                        padding: "0.2rem 0.5rem",
-                        borderRadius: "4px",
-                        fontWeight: "800",
-                      }}
-                    >
-                      {scrapedPagasaData.cycloneBulletin.ncrSignal}
-                    </span>
-                  </div>
                 </>
               )}
             </div>
@@ -499,6 +476,7 @@ const PredictionTool = () => {
             </a>
           </div>
 
+          {/* Daily Weather */}
           <div
             style={{
               backgroundColor: "#ffffff",
@@ -567,32 +545,6 @@ const PredictionTool = () => {
                     fontWeight: "600",
                   }}
                 >
-                  Location:
-                </span>
-                <span
-                  style={{
-                    fontSize: "0.85rem",
-                    color: "#0c4a6e",
-                    fontWeight: "800",
-                  }}
-                >
-                  {scrapedPagasaData.dailyWeather.location}
-                </span>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "0.5rem",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "0.85rem",
-                    color: "#075985",
-                    fontWeight: "600",
-                  }}
-                >
                   Condition:
                 </span>
                 <span
@@ -600,20 +552,12 @@ const PredictionTool = () => {
                     fontSize: "0.85rem",
                     color: "#0c4a6e",
                     fontWeight: "800",
-                    textAlign: "right",
-                    maxWidth: "180px",
                   }}
                 >
                   {scrapedPagasaData.dailyWeather.condition}
                 </span>
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "0.5rem",
-                }}
-              >
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span
                   style={{
                     fontSize: "0.85rem",
@@ -633,26 +577,6 @@ const PredictionTool = () => {
                   {scrapedPagasaData.dailyWeather.tempRange}
                 </span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span
-                  style={{
-                    fontSize: "0.85rem",
-                    color: "#075985",
-                    fontWeight: "600",
-                  }}
-                >
-                  Humidity:
-                </span>
-                <span
-                  style={{
-                    fontSize: "0.85rem",
-                    color: "#0c4a6e",
-                    fontWeight: "800",
-                  }}
-                >
-                  {scrapedPagasaData.dailyWeather.humidity}
-                </span>
-              </div>
             </div>
             <a
               href={scrapedPagasaData.dailyWeather.sourceUrl}
@@ -669,6 +593,7 @@ const PredictionTool = () => {
             </a>
           </div>
 
+          {/* KOICA Advisory */}
           <div
             style={{
               backgroundColor: floodCardStyle.bg,
@@ -727,79 +652,40 @@ const PredictionTool = () => {
               }}
             >
               {scrapedPagasaData.koicaFloodAdvisory.stations.map(
-                (station, idx) => {
-                  const isWarning =
-                    station.status === "Alert" || station.status === "Alarm";
-                  return (
-                    <div
-                      key={idx}
+                (station, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      paddingBottom: "0.5rem",
+                      borderBottom:
+                        idx !== 2
+                          ? `1px solid ${floodCardStyle.border}`
+                          : "none",
+                    }}
+                  >
+                    <span
                       style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        paddingBottom: "0.5rem",
-                        borderBottom:
-                          idx !== 2
-                            ? `1px solid ${floodCardStyle.border}`
-                            : "none",
+                        fontSize: "0.85rem",
+                        color: floodCardStyle.textSub,
+                        fontWeight: "800",
                       }}
                     >
-                      <div style={{ display: "flex", flexDirection: "column" }}>
-                        <span
-                          style={{
-                            fontSize: "0.85rem",
-                            color: floodCardStyle.textSub,
-                            fontWeight: "800",
-                          }}
-                        >
-                          {station.name}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "0.7rem",
-                            color: floodCardStyle.textHead,
-                          }}
-                        >
-                          Critical: {station.criticalLevel}m
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.75rem",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "1rem",
-                            color: isWarning
-                              ? "#b91c1c"
-                              : floodCardStyle.textSub,
-                            fontWeight: "800",
-                          }}
-                        >
-                          {station.currentLevel}m
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "0.7rem",
-                            backgroundColor: isWarning ? "#fee2e2" : "#ffffff",
-                            color: isWarning
-                              ? "#b91c1c"
-                              : floodCardStyle.accent,
-                            padding: "0.2rem 0.5rem",
-                            borderRadius: "4px",
-                            fontWeight: "700",
-                            border: `1px solid ${floodCardStyle.border}`,
-                          }}
-                        >
-                          {station.status}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                },
+                      {station.name}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "0.85rem",
+                        color: floodCardStyle.textSub,
+                        fontWeight: "800",
+                      }}
+                    >
+                      {station.currentLevel}m
+                    </span>
+                  </div>
+                ),
               )}
             </div>
             <a
@@ -818,6 +704,7 @@ const PredictionTool = () => {
           </div>
         </div>
 
+        {/* Map and Result Section */}
         <div
           style={{
             display: "flex",
@@ -835,7 +722,6 @@ const PredictionTool = () => {
             }}
           >
             <div
-              className="relative w-full z-10"
               style={{
                 height: "65vh",
                 borderRadius: "20px",
@@ -851,7 +737,6 @@ const PredictionTool = () => {
                 minZoom={13}
                 maxBounds={marikinaBounds}
                 maxBoundsViscosity={1.0}
-                zoomControl={true}
                 scrollWheelZoom={false}
                 className="w-full h-full"
                 style={{ background: "#e0f2fe", height: "100%", width: "100%" }}
@@ -870,18 +755,6 @@ const PredictionTool = () => {
                 )}
               </MapContainer>
             </div>
-            <p
-              style={{
-                textAlign: "center",
-                color: "#64748b",
-                fontSize: "0.9rem",
-                marginTop: "1rem",
-                fontWeight: "600",
-              }}
-            >
-              👆 Click any Barangay on the map to run the Random Forest
-              Prediction Model.
-            </p>
           </div>
 
           <div
@@ -905,8 +778,9 @@ const PredictionTool = () => {
                 margin: "0 0 1.5rem 0",
               }}
             >
-              Run AI Flood Prediction
+              Flood Prediction
             </h2>
+
             <div
               style={{
                 display: "flex",
@@ -915,253 +789,141 @@ const PredictionTool = () => {
                 marginBottom: "2rem",
               }}
             >
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "0.9rem",
-                    fontWeight: "700",
-                    color: "#64748b",
-                    marginBottom: "0.5rem",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Target Area
-                </label>
-                <select
-                  value={selectedBarangay}
-                  onChange={(e) => handlePredict(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "1rem",
-                    fontSize: "1.1rem",
-                    fontWeight: "700",
-                    color: "#0f172a",
-                    backgroundColor: "#f8fafc",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "10px",
-                    cursor: "pointer",
-                    outline: "none",
-                  }}
-                >
-                  {marikinaBarangays.map((brgy) => (
-                    <option key={brgy} value={brgy}>
-                      {brgy}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <select
+                value={selectedBarangay}
+                onChange={(e) => handlePredict(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "1rem",
+                  fontSize: "1.1rem",
+                  fontWeight: "700",
+                  border: "2px solid #e2e8f0",
+                  borderRadius: "10px",
+                }}
+              >
+                {marikinaBarangays.map((brgy) => (
+                  <option key={brgy} value={brgy}>
+                    {brgy}
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={() => handlePredict()}
                 disabled={isPredicting}
                 style={{
                   width: "100%",
                   padding: "1rem",
-                  fontSize: "1.1rem",
-                  fontWeight: "700",
-                  color: "#ffffff",
-                  background: isPredicting
-                    ? "#94a3b8"
-                    : "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
-                  border: "none",
+                  background: isPredicting ? "#94a3b8" : "#0284c7",
+                  color: "#fff",
                   borderRadius: "10px",
-                  cursor: isPredicting ? "not-allowed" : "pointer",
-                  boxShadow: isPredicting
-                    ? "none"
-                    : "0 4px 15px rgba(2, 132, 199, 0.3)",
-                  transition: "all 0.2s",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.75rem",
-                  height: "56px",
+                  fontWeight: "700",
+                  border: "none",
                 }}
               >
-                {isPredicting ? (
-                  <>
-                    <div
-                      style={{
-                        width: "20px",
-                        height: "20px",
-                        border: "3px solid rgba(255,255,255,0.3)",
-                        borderTopColor: "#ffffff",
-                        borderRadius: "50%",
-                        animation: "spin 1s linear infinite",
-                      }}
-                    ></div>
-                    <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-                    Processing Model...
-                  </>
-                ) : (
-                  "Generate Forecast"
-                )}
+                {isPredicting ? "Processing Model..." : "Generate Forecast"}
               </button>
             </div>
 
             {predictionResults && !isPredicting && (
-              <div
-                style={{
-                  flex: 1,
-                  animation: "fadeIn 0.5s ease-in-out",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
+              <div style={{ flex: 1 }}>
+                <h3
+                  style={{
+                    fontSize: "1.2rem",
+                    fontWeight: "600",
+                    color: "#475569",
+                  }}
+                >
+                  Results for{" "}
+                  <span style={{ color: "#0f172a", fontWeight: "800" }}>
+                    {selectedBarangay}
+                  </span>
+                </h3>
                 <div
                   style={{
-                    height: "1px",
-                    backgroundColor: "#e2e8f0",
-                    margin: "0 0 1.5rem 0",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "1.5rem",
+                    marginTop: "1rem",
+                    backgroundColor: "#f8fafc",
+                    padding: "1.5rem",
+                    borderRadius: "12px",
+                    border: "1px solid #e2e8f0",
                   }}
-                ></div>
-                <div style={{ marginBottom: "2rem" }}>
-                  <h3
-                    style={{
-                      fontSize: "1.2rem",
-                      color: "#475569",
-                      margin: "0 0 0.5rem 0",
-                      fontWeight: "600",
-                    }}
-                  >
-                    Prediction Results for{" "}
-                    <span style={{ color: "#0f172a", fontWeight: "800" }}>
-                      {selectedBarangay}
-                    </span>
-                  </h3>
+                >
                   <div
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "1.5rem",
-                      marginTop: "1rem",
-                      backgroundColor: "#f8fafc",
-                      padding: "1.5rem",
-                      borderRadius: "12px",
-                      border: "1px solid #e2e8f0",
+                      fontSize: "4.5rem",
+                      fontWeight: "800",
+                      color: predictionResults.riskColor,
                     }}
                   >
+                    {predictionResults.peakProbability}%
+                  </div>
+                  <div>
                     <div
                       style={{
-                        fontSize: "4.5rem",
-                        fontWeight: "800",
-                        color: predictionResults.riskColor,
-                        lineHeight: "1",
-                        letterSpacing: "-0.05em",
+                        fontSize: "1rem",
+                        fontWeight: "700",
+                        color: "#64748b",
                       }}
                     >
-                      {predictionResults.peakProbability}%
+                      PEAK RISK
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                      <span
-                        style={{
-                          fontSize: "1rem",
-                          fontWeight: "700",
-                          color: "#64748b",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.05em",
-                        }}
-                      >
-                        Peak Probability
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "1.1rem",
-                          fontWeight: "800",
-                          color: predictionResults.riskColor,
-                          backgroundColor: `${predictionResults.riskColor}15`,
-                          padding: "0.3rem 1rem",
-                          borderRadius: "999px",
-                          marginTop: "0.5rem",
-                          display: "inline-block",
-                          width: "fit-content",
-                        }}
-                      >
-                        {predictionResults.riskLevel}
-                      </span>
+                    <div
+                      style={{
+                        fontSize: "1.1rem",
+                        fontWeight: "800",
+                        color: predictionResults.riskColor,
+                      }}
+                    >
+                      {predictionResults.riskLevel}
                     </div>
                   </div>
                 </div>
-                <div
-                  style={{ flex: 1, display: "flex", flexDirection: "column" }}
+
+                <h4
+                  style={{
+                    fontSize: "1.1rem",
+                    color: "#0f172a",
+                    fontWeight: "800",
+                    margin: "1.5rem 0 1rem 0",
+                  }}
                 >
-                  <h4
-                    style={{
-                      fontSize: "1.1rem",
-                      color: "#0f172a",
-                      fontWeight: "800",
-                      margin: "0 0 1rem 0",
-                    }}
-                  >
-                    24-Hour Probability Timeline
-                  </h4>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "0.75rem",
-                      overflowX: "auto",
-                      paddingBottom: "1rem",
-                      scrollbarWidth: "thin",
-                    }}
-                  >
-                    {predictionResults.hourly.map((hour, idx) => {
-                      const isHighRisk = hour.prob >= 75;
-                      const isMediumRisk = hour.prob >= 50 && hour.prob < 75;
-                      const barColor = isHighRisk
-                        ? "#ef4444"
-                        : isMediumRisk
-                          ? "#eab308"
-                          : "#3b82f6";
-                      const bgColor = isHighRisk
-                        ? "#fef2f2"
-                        : isMediumRisk
-                          ? "#fefce8"
-                          : "#eff6ff";
-                      return (
-                        <div
-                          key={idx}
-                          style={{
-                            minWidth: "85px",
-                            padding: "1rem 0.5rem",
-                            backgroundColor: bgColor,
-                            border: `1px solid ${barColor}40`,
-                            borderRadius: "12px",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            transition: "transform 0.2s",
-                          }}
-                          onMouseOver={(e) =>
-                            (e.currentTarget.style.transform =
-                              "translateY(-2px)")
-                          }
-                          onMouseOut={(e) =>
-                            (e.currentTarget.style.transform = "translateY(0)")
-                          }
-                        >
-                          <span
-                            style={{
-                              fontSize: "0.85rem",
-                              color: "#475569",
-                              fontWeight: "700",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {hour.time}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: "1.4rem",
-                              color: barColor,
-                              fontWeight: "800",
-                            }}
-                          >
-                            {hour.prob}%
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  24-Hour Timeline
+                </h4>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "0.75rem",
+                    overflowX: "auto",
+                    paddingBottom: "1rem",
+                  }}
+                >
+                  {predictionResults.hourly.map((hour, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        minWidth: "85px",
+                        padding: "1rem 0.5rem",
+                        backgroundColor: "#f0f9ff",
+                        borderRadius: "12px",
+                        textAlign: "center",
+                      }}
+                    >
+                      <div style={{ fontSize: "0.85rem", fontWeight: "700" }}>
+                        {hour.time}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "1.4rem",
+                          fontWeight: "800",
+                          color: "#3b82f6",
+                        }}
+                      >
+                        {hour.prob}%
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -1169,37 +931,12 @@ const PredictionTool = () => {
             {isPredicting && (
               <div
                 style={{
-                  padding: "2rem",
-                  backgroundColor: "#f0f9ff",
-                  borderRadius: "16px",
-                  border: "1px dashed #0284c7",
                   textAlign: "center",
-                  animation: "pulse 1.5s infinite",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "1rem",
+                  color: "#0369a1",
+                  fontWeight: "700",
                 }}
               >
-                <div
-                  style={{
-                    width: "40px",
-                    height: "40px",
-                    border: "4px solid #bae6fd",
-                    borderTopColor: "#0284c7",
-                    borderRadius: "50%",
-                    animation: "spin 1s linear infinite",
-                  }}
-                ></div>
-                <span
-                  style={{
-                    color: "#0369a1",
-                    fontWeight: "700",
-                    fontSize: "1.1rem",
-                  }}
-                >
-                  Scraping live data & running Random Forest model...
-                </span>
+                Scraping live data & running model...
               </div>
             )}
           </div>
