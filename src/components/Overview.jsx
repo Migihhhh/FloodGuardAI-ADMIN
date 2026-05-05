@@ -5,33 +5,35 @@ import "leaflet/dist/leaflet.css";
 
 import marikinaGeoJSON from "../assets/data/marikina.json";
 
+// Updated to match the accurate base percentages from PredictionTool.jsx
 const marikinaTableData = [
-  { id: 1, name: "Barangka", floodProb: 35 },
-  { id: 2, name: "Calumpang", floodProb: 40 },
-  { id: 3, name: "Concepcion Uno", floodProb: 25 },
-  { id: 4, name: "Concepcion Dos", floodProb: 15 },
-  { id: 5, name: "Fortune", floodProb: 10 },
-  { id: 6, name: "Industrial Valley (IVC)", floodProb: 65 },
-  { id: 7, name: "Jesus de la Peña", floodProb: 55 },
-  { id: 8, name: "Malanday", floodProb: 85 },
-  { id: 9, name: "Marikina Heights", floodProb: 10 },
-  { id: 10, name: "Nangka", floodProb: 75 },
-  { id: 11, name: "Parang", floodProb: 20 },
-  { id: 12, name: "San Roque", floodProb: 45 },
-  { id: 13, name: "Santa Elena", floodProb: 50 },
-  { id: 14, name: "Santo Niño", floodProb: 60 },
-  { id: 15, name: "Tañong", floodProb: 30 },
-  { id: 16, name: "Tumana", floodProb: 90 },
+  { id: 1, name: "Barangka", floodProb: 5 },
+  { id: 2, name: "Calumpang", floodProb: 8 },
+  { id: 3, name: "Concepcion Uno", floodProb: 12 },
+  { id: 4, name: "Concepcion Dos", floodProb: 2 },
+  { id: 5, name: "Fortune", floodProb: 4 },
+  { id: 6, name: "Industrial Valley (IVC)", floodProb: 12 },
+  { id: 7, name: "Jesus de la Peña", floodProb: 10 },
+  { id: 8, name: "Malanday", floodProb: 15 },
+  { id: 9, name: "Marikina Heights", floodProb: 2 },
+  { id: 10, name: "Nangka", floodProb: 14 },
+  { id: 11, name: "Parang", floodProb: 3 },
+  { id: 12, name: "San Roque", floodProb: 6 },
+  { id: 13, name: "Santa Elena", floodProb: 8 },
+  { id: 14, name: "Santo Niño", floodProb: 9 },
+  { id: 15, name: "Tañong", floodProb: 5 },
+  { id: 16, name: "Tumana", floodProb: 15 },
 ];
 
-const waterStationsData = [
+// Initial Loading State for Stations
+const initialWaterStations = [
   {
     id: 1,
     name: "Sto. Niño (Marikina River)",
     mapName: "Santo Niño",
-    status: "Normal",
-    level: 13.2,
-    history: { m10: 13.2, m30: 13.18, h1: 13.15 },
+    riverKey: "sto_nino",
+    status: "Loading...",
+    level: 0.0,
     thresholds: { alert: 15.0, alarm: 16.0, critical: 18.0 },
     lat: 14.6335,
     lng: 121.094,
@@ -40,10 +42,10 @@ const waterStationsData = [
     id: 2,
     name: "Nangka River",
     mapName: "Nangka",
-    status: "Alert",
-    level: 16.65,
-    history: { m10: 16.65, m30: 16.5, h1: 16.2 },
-    thresholds: { alert: 16.5, alarm: 17.1, critical: 17.7 },
+    riverKey: "nangka",
+    status: "Loading...",
+    level: 0.0,
+    thresholds: { alert: 16.0, alarm: 16.5, critical: 17.0 },
     lat: 14.6685,
     lng: 121.10005,
   },
@@ -51,16 +53,16 @@ const waterStationsData = [
     id: 3,
     name: "Tumana Bridge",
     mapName: "Tumana",
-    status: "Normal",
-    level: 14.1,
-    history: { m10: 14.1, m30: 14.1, h1: 14.05 },
-    thresholds: { alert: 15.5, alarm: 16.5, critical: 17.5 },
+    riverKey: "tumana",
+    status: "Loading...",
+    level: 0.0,
+    thresholds: { alert: 16.0, alarm: 16.5, critical: 17.0 },
     lat: 14.655,
     lng: 121.0965,
   },
 ];
 
-// Default empty state before API loads
+// Default empty state before Open-Meteo API loads
 const defaultWeatherForecasts = marikinaTableData.map((b) => ({
   id: b.id,
   name: b.name,
@@ -76,18 +78,13 @@ const getBarangayData = (barangayName) =>
   marikinaTableData.find((b) => b.name === barangayName) || { floodProb: 0 };
 
 const getStatusColor = (status) => {
-  switch (status) {
-    case "Normal":
-      return "#22c55e";
-    case "Alert":
-      return "#eab308";
-    case "Alarm":
-      return "#f97316";
-    case "Critical":
-      return "#ef4444";
-    default:
-      return "#94a3b8";
+  if (typeof status === "string") {
+    const s = status.toUpperCase();
+    if (s === "CRITICAL") return "#ef4444";
+    if (s === "WARNING" || s === "ALARM" || s === "ALERT") return "#eab308";
+    if (s === "SAFE" || s === "NORMAL") return "#22c55e";
   }
+  return "#94a3b8";
 };
 
 const getWeatherMapColor = (rainChance) => {
@@ -265,7 +262,7 @@ const WeatherForecastCard = ({ data, innerRef, isHighlighted }) => {
           gap: "0.5rem",
         }}
       >
-        {expanded ? "Hide 5-Day Forecast" : "Show 5-Day AI Forecast"}{" "}
+        {expanded ? "Hide 5-Day Forecast" : "Show 5-Day Forecast"}{" "}
         <span style={{ fontSize: "0.8rem" }}>{expanded ? "▲" : "▼"}</span>
       </button>
       {expanded && (
@@ -336,16 +333,81 @@ const WeatherForecastCard = ({ data, innerRef, isHighlighted }) => {
 const DashboardBody = () => {
   const [activeTab, setActiveTab] = useState("stations");
   const [highlightedCard, setHighlightedCard] = useState(null);
+
+  // States for live APIs
+  const [waterStationsData, setWaterStationsData] =
+    useState(initialWaterStations);
+  const [engineTimeline, setEngineTimeline] = useState(null);
   const [weatherForecasts, setWeatherForecasts] = useState(
     defaultWeatherForecasts,
   );
+
   const cardRefs = useRef({});
 
-  // --- REAL API FETCH ---
+  // --- REAL FLASK API FETCH (Water Stations) ---
+  useEffect(() => {
+    const fetchFlaskEngine = async () => {
+      try {
+        const res = await fetch("https://floodguard-engine.onrender.com/api/status");
+        const data = await res.json();
+
+        // Update the Water Stations with real live readings and AI Status
+        if (data && data.live_sensors && data.prediction) {
+          setWaterStationsData([
+            {
+              id: 1,
+              name: "Sto. Niño (Marikina River)",
+              mapName: "Santo Niño",
+              riverKey: "sto_nino",
+              status: data.prediction.rivers.sto_nino.status,
+              level: data.live_sensors.sto_nino,
+              thresholds: { alert: 15.0, alarm: 16.0, critical: 18.0 },
+              lat: 14.6335,
+              lng: 121.094,
+            },
+            {
+              id: 2,
+              name: "Nangka River",
+              mapName: "Nangka",
+              riverKey: "nangka",
+              status: data.prediction.rivers.nangka.status,
+              level: data.live_sensors.nangka,
+              thresholds: { alert: 16.0, alarm: 16.5, critical: 17.0 },
+              lat: 14.6685,
+              lng: 121.10005,
+            },
+            {
+              id: 3,
+              name: "Tumana Bridge",
+              mapName: "Tumana",
+              riverKey: "tumana",
+              status: data.prediction.rivers.tumana.status,
+              level: data.live_sensors.tumana,
+              thresholds: { alert: 16.0, alarm: 16.5, critical: 17.0 },
+              lat: 14.655,
+              lng: 121.0965,
+            },
+          ]);
+
+          // Save the timeline for the AI Projections cards
+          if (data.prediction.timeline) {
+            setEngineTimeline(data.prediction.timeline);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch Flask Engine:", err);
+      }
+    };
+
+    fetchFlaskEngine();
+    const intervalId = setInterval(fetchFlaskEngine, 300000); // Check every 5 mins
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // --- REAL OPEN-METEO API FETCH (Weather Tab) ---
   useEffect(() => {
     const fetchRealWeather = async () => {
       try {
-        // Open-Meteo free API targeting Marikina Coordinates
         const res = await fetch(
           "https://api.open-meteo.com/v1/forecast?latitude=14.6408&longitude=121.1041&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m&hourly=precipitation_probability&timezone=Asia%2FManila",
         );
@@ -360,9 +422,7 @@ const DashboardBody = () => {
         const baseRainChance =
           data.hourly.precipitation_probability[currentHour];
 
-        // Apply the real Marikina data to all barangays, with slight variations to keep the UI dynamic
         const realDataMap = marikinaTableData.map((b, idx) => {
-          // Slight offsets based on index to simulate hyper-local microclimates
           const offset = (idx % 3) * 2;
           const bRainChance = Math.min(
             100,
@@ -445,7 +505,7 @@ const DashboardBody = () => {
       tooltipHtml = `<div class="font-bold text-center" style="color: #0f172a;">${barangayName}<br/><span style="font-weight: 700; color: #0284c7;">Rain Chance: ${weatherData.rainChance}%<br/>Precip: ${weatherData.precip}mm</span></div>`;
     } else {
       const barangayData = getBarangayData(barangayName);
-      tooltipHtml = `<div class="font-bold text-center" style="color: #0f172a;">${barangayName}<br/><span style="font-weight: 700; color: #0284c7;">Flood Prob: ${barangayData.floodProb}%</span></div>`;
+      tooltipHtml = `<div class="font-bold text-center" style="color: #0f172a;">${barangayName}<br/><span style="font-weight: 700; color: #0284c7;">Base Flood Prob: ${barangayData.floodProb}%</span></div>`;
     }
     layer.bindTooltip(tooltipHtml, { sticky: true });
     layer.on({
@@ -640,7 +700,7 @@ const DashboardBody = () => {
                   transition: "all 0.2s ease",
                 }}
               >
-                AI Weather Forecast
+                Live Weather Data
               </button>
             </div>
           </div>
@@ -751,6 +811,7 @@ const DashboardBody = () => {
                         </span>
                       </div>
                     </div>
+
                     <div
                       style={{
                         display: "grid",
@@ -760,61 +821,118 @@ const DashboardBody = () => {
                     >
                       <div
                         style={{
-                          backgroundColor: "#f8fafc",
+                          backgroundColor: "#f0f9ff",
                           padding: "1rem",
                           borderRadius: "12px",
-                          border: "1px solid #e2e8f0",
+                          border: "1px solid #7dd3fc",
                         }}
                       >
                         <div
                           style={{
                             fontSize: "0.75rem",
                             fontWeight: "800",
-                            color: "#475569",
+                            color: "#0369a1",
                             marginBottom: "0.75rem",
                           }}
                         >
-                          RECENT HISTORY
+                          AI PROJECTIONS (NEXT 3 HOURS)
                         </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            fontSize: "0.85rem",
-                            marginBottom: "0.4rem",
-                          }}
-                        >
-                          <span style={{ color: "#64748b" }}>10m Ago:</span>{" "}
-                          <span style={{ fontWeight: "700" }}>
-                            {station.history.m10.toFixed(2)}m
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            fontSize: "0.85rem",
-                            marginBottom: "0.4rem",
-                          }}
-                        >
-                          <span style={{ color: "#64748b" }}>30m Ago:</span>{" "}
-                          <span style={{ fontWeight: "700" }}>
-                            {station.history.m30.toFixed(2)}m
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            fontSize: "0.85rem",
-                          }}
-                        >
-                          <span style={{ color: "#64748b" }}>1h Ago:</span>{" "}
-                          <span style={{ fontWeight: "700" }}>
-                            {station.history.h1.toFixed(2)}m
-                          </span>
-                        </div>
+                        {engineTimeline ? (
+                          <>
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                fontSize: "0.85rem",
+                                marginBottom: "0.4rem",
+                              }}
+                            >
+                              <span
+                                style={{ color: "#64748b", fontWeight: "600" }}
+                              >
+                                {engineTimeline[0].time}:
+                              </span>
+                              <span
+                                style={{
+                                  fontWeight: "800",
+                                  color: getStatusColor(
+                                    engineTimeline[0][station.riverKey] >= 16
+                                      ? "CRITICAL"
+                                      : "SAFE",
+                                  ),
+                                }}
+                              >
+                                {engineTimeline[0][station.riverKey].toFixed(2)}
+                                m
+                              </span>
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                fontSize: "0.85rem",
+                                marginBottom: "0.4rem",
+                              }}
+                            >
+                              <span
+                                style={{ color: "#64748b", fontWeight: "600" }}
+                              >
+                                {engineTimeline[1].time}:
+                              </span>
+                              <span
+                                style={{
+                                  fontWeight: "800",
+                                  color: getStatusColor(
+                                    engineTimeline[1][station.riverKey] >= 16
+                                      ? "CRITICAL"
+                                      : "SAFE",
+                                  ),
+                                }}
+                              >
+                                {engineTimeline[1][station.riverKey].toFixed(2)}
+                                m
+                              </span>
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                fontSize: "0.85rem",
+                              }}
+                            >
+                              <span
+                                style={{ color: "#64748b", fontWeight: "600" }}
+                              >
+                                {engineTimeline[2].time}:
+                              </span>
+                              <span
+                                style={{
+                                  fontWeight: "800",
+                                  color: getStatusColor(
+                                    engineTimeline[2][station.riverKey] >= 16
+                                      ? "CRITICAL"
+                                      : "SAFE",
+                                  ),
+                                }}
+                              >
+                                {engineTimeline[2][station.riverKey].toFixed(2)}
+                                m
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <div
+                            style={{
+                              fontSize: "0.85rem",
+                              color: "#64748b",
+                              fontStyle: "italic",
+                            }}
+                          >
+                            Loading AI timeline...
+                          </div>
+                        )}
                       </div>
+
                       <div
                         style={{
                           backgroundColor: "#f8fafc",

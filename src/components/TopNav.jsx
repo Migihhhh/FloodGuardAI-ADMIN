@@ -5,6 +5,29 @@ import logo from "../assets/images/floodguard-logo.png";
 const TopNav = ({ onLoginClick, setActiveTab, activeTab }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+
+  useEffect(() => {
+    fetch("https://floodguard-engine.onrender.com/api/simulate")
+      .then(res => res.json())
+      .then(data => setIsSimulating(data.simulation_active))
+      .catch(err => console.error("Could not fetch simulation status:", err));
+  }, []);
+
+  const toggleSimulation = async () => {
+    const newState = !isSimulating;
+    setIsSimulating(newState);
+    try {
+      await fetch("https://floodguard-engine.onrender.com/api/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ simulate: newState })
+      });
+    } catch (err) {
+      console.error("Failed to toggle simulation:", err);
+      setIsSimulating(!newState); // revert on failure
+    }
+  };
 
   useEffect(() => {
     let prevScrollPos = window.scrollY;
@@ -86,6 +109,17 @@ const TopNav = ({ onLoginClick, setActiveTab, activeTab }) => {
 
         {/* ================= RIGHT SIDE ================= */}
         <div className="flex items-center gap-4">
+          <button
+            onClick={toggleSimulation}
+            className={`hidden xl:flex items-center justify-center h-[55px] px-6 rounded-md font-bold text-[18px] tracking-wide transition-all border-2 ${
+              isSimulating 
+                ? "bg-red-100 text-red-700 border-red-500 hover:bg-red-200 shadow-[0_0_15px_rgba(239,68,68,0.5)]" 
+                : "bg-white text-gray-500 border-gray-300 hover:bg-gray-100"
+            }`}
+          >
+            {isSimulating ? "🛑 SIMULATION ACTIVE" : "⚠️ TEST TYPHOON"}
+          </button>
+
           <button
             onClick={onLoginClick}
             className="hidden xl:block bg-[#005ec6] text-white w-[163px] h-[55px] leading-none rounded-md font-medium text-[20px] tracking-wide hover:bg-blue-800 transition-colors mr-[280px]"
